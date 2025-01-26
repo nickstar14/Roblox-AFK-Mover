@@ -10,33 +10,9 @@ from tkinter import messagebox
 from pathlib import Path
 import platform
 import sys
-import requests  # Added to check for updates
 
 # Version number
 version_number = "1.3.0"
-
-# Function to check for updates
-def check_for_updates():
-    repo_url = "https://raw.githubusercontent.com/nickstar14/Roblox-AFK-Mover/master/version.txt"
-    try:
-        response = requests.get(repo_url, timeout=5)
-        response.raise_for_status()
-        latest_version = response.text.strip()
-
-        if latest_version != version_number:
-            messagebox.showinfo(
-                "Update Available",
-                f"A new version ({latest_version}) is available! Please update your program."
-            )
-        else:
-            print("You're using the latest version.")
-    except requests.ConnectionError:
-        print("No internet connection. Unable to check for updates.")
-    except requests.exceptions.RequestException as e:
-        print(f"Error checking for updates: {e}")
-
-# Call the update check before anything else
-check_for_updates()
 
 # Determine the OS and set the Documents folder path
 if platform.system() == "Windows":
@@ -116,4 +92,138 @@ def perform_random_key_action():
     last_run_time = datetime.now().strftime('%B %d, %Y at %I:%M %p')  # Updated format
     last_run_label.config(text=f"Last Run Time: {last_run_time}")
 
-# (The rest of your code remains unchanged.)
+# Countdown function for the next run
+def update_countdown():
+    global last_wait_time
+
+    if last_wait_time > 0:
+        minutes, seconds = divmod(last_wait_time, 60)
+        countdown_label.config(text=f"Next Run Time: {minutes}m {seconds}s")
+        last_wait_time -= 1
+        global countdown_task
+        countdown_task = root.after(1000, update_countdown)  # Schedule next countdown update
+    else:
+        # Perform the next action once the countdown ends
+        perform_random_key_action()
+        last_wait_time = random.randint(2, 7) * 60  # Random interval between 2 and 7 minutes
+        update_countdown()
+
+# Kill function to cancel any running tasks or countdowns
+def kill():
+    global running, last_wait_time
+    running = False
+    last_wait_time = 0  # Reset the countdown to prevent it from continuing
+    countdown_label.config(text="Next Run Time: Not yet scheduled")
+    last_run_label.config(text="Last Run Time: Not yet run")
+    start_button.config(state=tk.NORMAL)
+    stop_button.config(state=tk.DISABLED)
+
+    # If there's any scheduled function, cancel it
+    root.after_cancel(countdown_task)  # This will cancel the scheduled countdown task
+
+# Main thread to control the actions
+def main():
+    global running, last_wait_time
+
+    last_wait_time = 7  # Initial countdown for 7 seconds
+    update_countdown()
+
+# Start the program
+def start():
+    global running
+    if not running:
+        running = True
+        threading.Thread(target=main, daemon=True).start()
+        start_button.config(state=tk.DISABLED)
+        stop_button.config(state=tk.NORMAL)
+
+# Stop the program
+def stop():
+    global running
+    if running:
+        kill()  # Call the kill function to stop everything
+        messagebox.showinfo("Info", "Program stopped")
+
+# Open the Help window
+def open_info_window():
+    info_window = tk.Toplevel(root)
+    info_window.title("Help")
+    
+    info_window.geometry("300x230")
+    info_window.pack_propagate(False)
+    info_window.resizable(False, False)
+
+    tk.Label(info_window, text="Roblox AFK Mover", font=("Helvetica", 12, 'bold')).pack(pady=10)
+    tk.Label(info_window, text="Helpful Information:", font=("Helvetica", 8, 'bold')).pack(pady=2)
+
+    help_frame = tk.Frame(info_window, bg="lightgrey", bd=1, relief=tk.SOLID)
+    help_frame.pack(pady=10, padx=10, fill=tk.X)
+
+    help_text = """- Ensure Roblox is open before starting.
+- Roblox must be selected for the program to work.
+- The program will perform random key presses every
+   few minutes to keep your Roblox game active.
+- Roblox may close or restart the server you are in.
+  This is out of our control."""
+    
+    tk.Label(help_frame, text=help_text, justify='left', anchor='w', bg="lightgrey", font=("Helvetica", 8)).pack(pady=1, padx=5)
+    tk.Button(info_window, text="Close", command=info_window.destroy).pack(pady=10)
+
+# Open the Version window
+def open_version_window():
+    version_window = tk.Toplevel(root)
+    version_window.title("Version")
+    
+    version_window.geometry("300x250")
+    version_window.pack_propagate(False)
+    version_window.resizable(False, False)
+
+    tk.Label(version_window, text=f"Roblox AFK Mover v{version_number}", font=("Helvetica", 12, 'bold')).pack(pady=10)
+    tk.Label(version_window, text="Patch Notes:", font=("Helvetica", 8, 'bold')).pack(pady=2)
+
+    patch_notes_frame = tk.Frame(version_window, bg="lightgrey", bd=1, relief=tk.SOLID)
+    patch_notes_frame.pack(pady=10, padx=10, fill=tk.X)
+
+    tk.Label(patch_notes_frame, text="""- Added Help and Version windows
+- Added Next Run Time
+- Added 7 second delay when starting
+- Separated information into menus
+- Changed the way logs are saved
+- Logs now help determine unique key patterns
+- Visual changes for better readability""", justify='left', anchor='w', bg="lightgrey", font=("Helvetica", 8)).pack(pady=3, padx=5)
+
+    tk.Button(version_window, text="Close", command=version_window.destroy).pack(pady=10)
+
+# GUI setup
+root = tk.Tk()
+root.title("Roblox AFK Mover")
+root.geometry("300x170")
+root.resizable(False, False)
+
+menu_bar = tk.Menu(root)
+menu_bar.add_command(label="Help", command=open_info_window)
+menu_bar.add_command(label="Version", command=open_version_window)
+root.config(menu=menu_bar)
+
+hello_world_label = tk.Label(root, text="Click Help for instructions", font=("Helvetica", 12, 'bold'))
+hello_world_label.pack(pady=10)
+
+button_frame = tk.Frame(root)
+button_frame.pack(pady=10)
+
+start_button = tk.Button(button_frame, text="Start", command=start, bg="#009900", fg="white", padx=25, pady=5)
+start_button.pack(side=tk.LEFT, padx=5)
+
+stop_button = tk.Button(button_frame, text="Stop", command=stop, bg="#cc0000", fg="white", state=tk.DISABLED, padx=25, pady=5)
+stop_button.pack(side=tk.LEFT, padx=5)
+
+run_info_frame = tk.Frame(root, bg="lightgrey", bd=1, relief=tk.SOLID)
+run_info_frame.pack(pady=10, padx=10, fill=tk.X)
+
+last_run_label = tk.Label(run_info_frame, text="Last Run Time: Not yet run", font=("Helvetica", 8), bg="lightgrey")
+last_run_label.pack(pady=2, padx=5)
+
+countdown_label = tk.Label(run_info_frame, text="Next Run Time: Not yet scheduled", font=("Helvetica", 8), bg="lightgrey")
+countdown_label.pack(pady=2, padx=5)
+
+root.mainloop()
