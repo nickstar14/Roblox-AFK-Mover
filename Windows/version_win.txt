@@ -1,1 +1,1 @@
-1.3.0 https://github.com/nickstar14/Roblox-AFK-Mover/raw/refs/heads/master/dist/roblox_afk_mover.exe
+1.4.0 https://github.com/nickstar14/Roblox-AFK-Mover/raw/refs/heads/master/Windows/Roblox%20AFK%20Mover.exe
